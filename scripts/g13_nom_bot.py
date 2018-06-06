@@ -311,7 +311,7 @@ def do_nominations(passnum = 0):
         add_text( \
           page = article, \
           addText = '{{db-g13|ts=%s}}' % edit_time_api , 
-          summary = '[[User:HasteurBot]]:Nominating for [[WP:G13|CSD:G13]]', \
+          summary = '(BOT) Nominating for deletion under [[WP:G13|CSD G13]]', \
           always = True, \
           reorderEnabled=False, \
           up = True
@@ -333,8 +333,8 @@ def do_nominations(passnum = 0):
           pywikibot.getSite(),
           'User talk:%s' % creator
         )
-        up_summary = '[[User:HasteurBot]]: Notification of '+\
-          '[[WP:G13|CSD:G13]] nomination on [[%s]]' % (article.title())
+        up_summary = '(BOT) Notification of '+\
+          '[[WP:G13|CSD G13]] nomination on [[%s]]' % (article.title())
         add_text( \
           page = user_talk_page, \
           summary = up_summary, \

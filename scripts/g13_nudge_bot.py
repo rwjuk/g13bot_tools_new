@@ -102,28 +102,9 @@ def nudge_drive(category_name):
               pywikibot.getSite(),
               user_talk_page_title
             )
-            summary = '[[User:HasteurBot]]: Notification of '+\
-              '[[WP:G13|CSD:G13]] potential nomination of [[%s]]' % (article.title())
-            notice = "==[[%s]] concern==\n" % (article.title()) +\
-              "Hi there, I'm [[User:HasteurBot|HasteurBot]]. I "+ \
-              "just wanted to let you know " + \
-              "that [[%s]]," %(article.title()) +\
-              " a page you created, has not been edited in 5 months" +\
-              ".  The Articles for Creation space is not an" + \
-              " indefinite storage location for content that is not " + \
-              "appropriate for articlespace.\n\n" + \
-              "If your submission is not edited soon, it could be " + \
-              "nominated for deletion.  If you would like to attempt " + \
-              "to save it, you will need to improve it.\n\n"
-            if ip_regexp.match(creator) is None:
-              notice = notice + "You may request " + \
-                "[[WP:USERFY|Userfication]] of the content if it " + \
-                "meets requirements.\n\n"
-            notice = notice + "If the " + \
-              "deletion has already occured, instructions on how you " + \
-              "may be able to retrieve it are available at " + \
-              "[[WP:REFUND/G13]].\n\n" + \
-              "Thank you for your attention. ~~~~"
+            summary = '(BOT) Notification of '+\
+              'potential [[WP:G13|CSD G13]] nomination of [[%s]]' % (article.title())
+            notice = "{{subst:User:Bot0612/G13_nudge_notice|{}|ip={}}} ~~~~".format(article.title(), "true" if ip_regexp.match(creator) else "")
             try:
                 user_talk_text = user_talk_page.get() +"\n"+ notice
             except:
@@ -146,7 +127,7 @@ def nudge_drive(category_name):
                 editor_list.append(rev[2])
             #Now let's intersect these to see who we get to notify
             intersection = set(editor_list) & set(afc_notify_list)
-            message = '\n==G13 Eligibility==\n[[%s]] has become eligible for G13. ~~~~' % article.title()
+            message = '\n==G13 eligibility==\n[[%s]] has become eligible for G13. ~~~~' % article.title()
             while intersection:
                 editor = intersection.pop()
                 cur = conn.cursor()
@@ -156,7 +137,7 @@ def nudge_drive(category_name):
     if False == potential_article:
         log_page = pywikibot.Page(
             pywikibot.getSite(),
-            'User:HasteurBot/Notices'
+            'User:Bot0612/G13 notices'
         )
         msg = "%s no longer has potential nominations\n\n" % category_name
         page_text = log_page.get() + msg

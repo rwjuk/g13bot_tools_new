@@ -29,7 +29,7 @@ def interested_notify():
     write_notification(list_current,editor_current)
 
 def write_notification(list_current,editor_current):
-    summary = "[[Wikipedia:Bots/Requests for approval/HasteurBot 9|HasteurBot 9]]: G13 Eligibility notices to interested editor"
+    summary = "(BOT) G13 Eligibility notices to interested editor"
     destination_page = pywikibot.Page(
         pywikibot.getSite(),
         'User talk:%s' % editor_current
