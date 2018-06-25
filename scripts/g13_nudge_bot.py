@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Scripts to manage categories.
@@ -23,8 +23,8 @@ __version__ = '$Id$'
 #
 
 import os, re, pickle, bz2, time, datetime, sys, logging
-from dateutil.relativedelta import relativedelta
 import pywikibot
+import toolforge
 
 from pywikibot import i18n, Bot, config, pagegenerators
 #DB CONFIG
@@ -39,7 +39,9 @@ docuReplacements = {
     '&params;': pagegenerators.parameterHelp
 }
 
-def nudge_drive(category_name):
+
+
+def nudge_drive():
     logger = logging.getLogger('g13_nudge_bot')
     page_text = pywikibot.Page(pywikibot.getSite(),
             'User:HasteurBot/G13 OptIn Notifications').get()
@@ -53,19 +55,19 @@ def nudge_drive(category_name):
                            r'(([\dA-F]{1,4}(\4|:\b|$)|\2){2}|'
                            r'(((2[0-4]|1\d|[1-9])?\d|25[0-5])\.?\b){4}))\Z',
                            re.IGNORECASE)
-    six_months_ago = ( 
-      datetime.datetime.now() + relativedelta(months=-5) 
-    ).timetuple()
+
+    tf_conn = toolforge.connect("enwiki")
+    potential_drafts = []
+    with tf_conn.cursor() as cur:
+        cur.execute('SELECT CONCAT("Draft:",page_title), page_touched FROM page WHERE page_namespace=118 AND page_is_redirect = FALSE AND page_touched < DATE_SUB(NOW(), INTERVAL 155 DAY) ORDER BY page_touched;')
+        potential_drafts = [e.decode("utf-8") for e,_ in list(cur.fetchall())]
     logger.debug('Opened DB conn')
     #Take this out once the full authorization has been given for this bot
     potential_article = False
     interested_insert = "INSERT INTO interested_notify (article,notified) VALUES (%s, %s)"
-    nom_cat = pywikibot.Category(
-        pywikibot.getSite(),
-        'Category:%s' % category_name
-    )
-    potential_articles = set(nom_cat.articles(recurse = True))
-    for article in potential_articles:
+    site = pywikibot.getSite()
+    for draft_title in potential_drafts[:19]:
+        article = pywikibot.Page(site, draft_title)
         if None != page_match.match(article.title()) or \
            None != page_match2.match(article.title()) :
           pywikibot.output(article.title())
@@ -75,7 +77,7 @@ def nudge_drive(category_name):
           )
           potential_article = True
           creator = article.getCreator()[0]
-          if edit_time < six_months_ago:
+          if True:  # Fix this
             #Notify Creator
             #Check for already nagged
             cur = conn.cursor()
@@ -91,22 +93,21 @@ def nudge_drive(category_name):
             cur = None
             if results[0] > 0:
               #We already have notified this user
-              logger.info(u"Already notifified (%s,%s)" %(creator, article.title()))
+              logger.info(u"Already notified (%s,%s)" %(creator, article.title()))
               continue
-            #Perform a null edit to get the creative Category juices flowing
-            logger.info('Starting to process %s' % article.title())
-            article.put(newtext = article.get(), comment="Null Edit", force=True)
-            logger.debug('Null Edit complete')
             user_talk_page_title = "User talk:%s" % creator
             user_talk_page = pywikibot.Page(
-              pywikibot.getSite(),
+              site,
               user_talk_page_title
             )
-            summary = '(BOT) Notification of '+\
+            summary = '([[Wikipedia:Bots/Requests_for_approval/Bot0612_11|BOT in trial]]) Notification of '+\
               'potential [[WP:G13|CSD G13]] nomination of [[%s]]' % (article.title())
-            notice = "{{subst:User:Bot0612/G13_nudge_notice|{}|ip={}}} ~~~~".format(article.title(), "true" if ip_regexp.match(creator) else "")
+            notice = "{{{{subst:User:Bot0612/G13_nudge_notice|{}|ip={}}}}} ~~~~".format(article.title(), "true" if ip_regexp.match(creator) else "")
             try:
-                user_talk_text = user_talk_page.get() +"\n"+ notice
+              if "==Your draft article, [[{}]]==".format(article.title()) in user_talk_text:
+                logger.info(u"User has been notified of G13 tagging ({},{})".format(creator, article.title())
+                continue
+              user_talk_text = user_talk_page.get() +"\n"+ notice
             except:
                 user_talk_text = notice
             user_talk_page.put(newtext = user_talk_text,
@@ -122,27 +123,18 @@ def nudge_drive(category_name):
             cur = None
             #Notify Interested parties
             #Get List of Editors to the page
-            editor_list = []
-            for rev in article.getVersionHistory():
-                editor_list.append(rev[2])
+            #editor_list = []
+            #for rev in article.getVersionHistory():
+            #    editor_list.append(rev[2])
             #Now let's intersect these to see who we get to notify
-            intersection = set(editor_list) & set(afc_notify_list)
-            message = '\n==G13 eligibility==\n[[%s]] has become eligible for G13. ~~~~' % article.title()
-            while intersection:
-                editor = intersection.pop()
-                cur = conn.cursor()
-                cur.execute(interested_insert, (article.title(),editor))
-                conn.commit()
+            #intersection = set(editor_list) & set(afc_notify_list)
+            #message = '\n==G13 eligibility==\n[[%s]] has become eligible for G13. ~~~~' % article.title()
+            #while intersection:
+            #    editor = intersection.pop()
+            #    cur = conn.cursor()
+            #    cur.execute(interested_insert, (article.title(),editor))
+            #    conn.commit()
             #Take this out when finished
-    if False == potential_article:
-        log_page = pywikibot.Page(
-            pywikibot.getSite(),
-            'User:Bot0612/G13 notices'
-        )
-        msg = "%s no longer has potential nominations\n\n" % category_name
-        page_text = log_page.get() + msg
-        log_page.put(newtext = page_text,comment="Date empty")
-        logger.critical(msg)
     conn.close()
 
 
@@ -183,11 +175,7 @@ def main(*args):
     restore = False
     create_pages = False
     action = 'listify'
-    for arg in pywikibot.handleArgs(*args):
-        if arg.startswith('-from:'):
-            oldCatTitle = arg[len('-from:'):].replace('_', ' ')
-            fromGiven = True
-    nudge_drive(oldCatTitle)
+    nudge_drive()
 
 
 
